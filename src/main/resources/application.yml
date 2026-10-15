@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: jpa-query-performance
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bookstore
+    username: bookstore
+    password: bookstore
+    hikari:
+      maximum-pool-size: 8
+  jpa:
+    # Left at false, which is NOT the Spring Boot default. With open-in-view the
+    # session survives until the response is written, so a lazy collection
+    # touched by Jackson loads silently from the view layer and the N+1 never
+    # shows up in a service test. Scenario `open-in-view` turns it back on in a
+    # context of its own to measure exactly that.
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # The instrument of the whole project: statement count, entity load
+        # count, collection load count and cache hits come from here.
+        generate_statistics: true
+        # Hibernate 6 only honours this for collections and to-ones that are
+        # annotated with @BatchSize; the global default stays 1 so the N+1
+        # variants measure an honest N+1.
+        default_batch_fetch_size: 1
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: jcache
+        javax:
+          cache:
+            provider: com.github.benmanes.caffeine.jcache.spi.CaffeineCachingProvider
+        session_factory:
+          # Every statement passes through here before it reaches the driver,
+          # which is how a scenario reports the SQL it provoked and not just how
+          # many statements it was.
+          statement_inspector: com.gkcontas.queryperf.measure.StatementRecorder
+  flyway:
+    enabled: true
+
+app:
+  seed:
+    publishers: 8
+    authors: 400
+    books: 2000
+    reviews-per-book: 30
+    authors-per-book: 3
+    # Fraction of books that get a cover row, so the nullable lazy @OneToOne is
+    # genuinely nullable - which is the whole reason Hibernate cannot proxy it.
+    cover-ratio: 0.5
+    batch-size: 500
+
+logging:
+  level:
+    com.gkcontas.queryperf: INFO
+
+server:
+  error:
+    include-message: always

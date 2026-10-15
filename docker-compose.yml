@@ -1,0 +1,22 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bookstore
+      POSTGRES_USER: bookstore
+      POSTGRES_PASSWORD: bookstore
+    ports:
+      # 5432 is free on this machine; the user's own containers publish 27017,
+      # 8083 and 4873.
+      - "5432:5432"
+    volumes:
+      - bookstore-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookstore -d bookstore"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  bookstore-pgdata:
